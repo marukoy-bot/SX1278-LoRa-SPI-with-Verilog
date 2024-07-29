@@ -10,11 +10,11 @@ initial count <= 0;
 
 always @(posedge clk_in or posedge rst) begin
 	if(rst) begin
-		count <= 3'b0;
-		clk_out <= 1'b0;
+		count <= 3'd0;
+		clk_out <= 1'd0;
 	end else begin
-		if (count == 3'b010) begin
-			count <= 3'b000;
+		if (count == 3'd4) begin
+			count <= 3'd0;
 			clk_out <= ~clk_out;
 		end else begin
 			count <= count + 1;	
