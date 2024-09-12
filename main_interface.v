@@ -90,7 +90,7 @@ task writeRegister(input [7:0] address, input [7:0] value);
 	end
 endtask
 
-task readRegister(input [7:0] address, output [7:0] value);
+	task readRegister(input [7:0] address, output [7:0] value); //not final, needs tweaking
 	begin
 		r_address_byte <= {r, address [6:0]};
 		value <= r_miso;
