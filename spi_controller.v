@@ -1,72 +1,103 @@
 module spi_controller(
-	input wire clk, //system clk (50MHz)
-	input wire reset,
-	input wire [15:0] datain,
-	output wire spi_cs_l, //active LOW chip select
-	output wire spi_sclk, //spi clk (10MHz)
-	output wire spi_data, //spi data
-	output wire busy_bit
+	input i_clk, //system clk (10MHz)
+	input i_rst,
+	input [15:0] i_data,
+	output o_spi_cs_l, //active LOW chip select
+	output o_spi_clk, //spi clk (10MHz)
+	output o_spi_mosi, //spi mosi
+	input i_spi_miso,
+	output [7:0] o_spi_miso_data
 );
 
-reg [15:0] MOSI;
-reg [4:0] count;
-reg cs_l;
-reg sclk;
-reg [2:0] state;
-reg busy;
+reg r_mosi;
+reg [7:0] r_miso;
+reg [4:0] r_count;
+reg r_spi_cs_l;
+reg r_spi_clk;
+reg [2:0] r_state;
 
 initial begin
-	MOSI <= 0;
-	count <= 0;
-	cs_l <= 0;
-	sclk <= 0;
-	state <= 0;
-	busy <= 0;
+	r_miso <= 8'h00;
+	r_mosi <= 1'b0;
+	r_count <= 5'd16;
+	r_spi_cs_l <= 1'b1;
+	r_spi_clk <= 1'b0;
+	r_state <= 0;
 end
 
-always @(posedge clk or posedge reset) begin
-	if(reset) begin
-		MOSI <= 16'b0;
-		count <= 5'd16;
-		cs_l <= 1'b1;
-		sclk <= 1'b0;
-		busy <= 0;
-		state <= 0;
-	end else begin
-		case (state)
-			0: begin
-				sclk <= 1'b0;
-				cs_l <= 1'b1;
-				state <= 1;
-				busy <= 0;
-				end
-			1: begin
-				sclk <= 1'b0;
-				cs_l <= 1'b0;
-				MOSI <= datain[count - 1];
-				count <= count - 1;
-				busy <= 1;
-				state <= 2;
-				end
-			2: begin
-				sclk <= 1'b1;
-				if(count > 0) 
-					state <= 1;
-				else begin
-					count <= 16;
-					busy = 0;
-					state <= 0;
-				end
-				end
-			default: state <= 0;
+always @(posedge i_clk)
+begin
+	if (~i_rst)
+	begin
+		r_miso <= 8'h00;
+		r_mosi <= 1'b0;
+		r_count <= 5'd16;
+		r_spi_cs_l <= 1'b1;
+		r_spi_clk <= 1'b0;
+		r_state <= 1'b0;
+	end
+	else
+	begin
+		case(r_state)
+		0:
+		begin
+			r_spi_clk <= 1'b0;
+			r_spi_cs_l <= 1'b1;
+			r_state <= 1;
+		end
+		1:
+		begin
+			r_spi_clk <= 1'b0;
+			r_spi_cs_l <= 1'b1;
+			r_state <= 2;
+		end
+		2:
+		begin
+			r_spi_clk <= 1'b0;
+			r_spi_cs_l <= 1'b0;
+			if(i_data[15] == 1'b1)
+			begin
+				r_mosi <= i_data[r_count - 1];
+			end
+			else
+			begin
+				r_mosi <= 1'b0;
+				if(r_count < 8)
+					r_miso[r_count] <= i_spi_miso;
+			end
+			r_count <= r_count - 1;
+			r_state <= 3;
+		end
+		3:
+		begin
+			r_spi_clk <= 1'b1;
+			if(r_count > 0)
+				r_state <= 2;
+			else
+			begin			
+				if(r_count == 0)
+					r_miso[0] <= i_spi_miso;	
+				r_count <= 5'd16;
+				r_state <= 4;
+			end
+		end
+		4:
+		begin
+			r_spi_clk <= 1'b0;
+			r_state <= 0;
+		end
+		default: r_state <= 0;
 		endcase
 	end
 end
 
-assign spi_cs_l = cs_l;
-assign spi_sclk = sclk;
-assign spi_data = MOSI;
-assign busy_bit = busy;
+assign o_spi_cs_l = r_spi_cs_l;
+assign o_spi_clk = r_spi_clk;
+assign o_spi_mosi = r_mosi;
+assign o_spi_miso_data = (r_count == 5'd16) ? r_miso : 8'h00;
+
+//debug
+assign o_count = r_count;
 
 endmodule
 
@@ -75,43 +106,74 @@ endmodule
 module tb_SPI;
 //inputs
 reg clk;
-reg reset;
-reg [15:0] datain;
+reg rst;
+reg [15:0] data;
 
 //outputs
 wire spi_cs_l;
-wire spi_sclk;
-wire spi_data;
-wire [4:0] counter;
+wire spi_clk;
+wire spi_mosi;
+reg spi_miso;
+wire [7:0] spi_miso_data;
 
-spi_state dut(
-	.clk(clk),
-	.reset(reset),
-	.datain(datain),
-	.spi_cs_l(spi_cs_l),
-	.spi_sclk(spi_sclk),
-	.spi_data(spi_data)
+spi_controller dut(
+	.i_clk(clk),
+	.i_rst(rst),
+	.i_data(data),
+	.o_spi_cs_l(spi_cs_l),
+	.o_spi_clk(spi_clk),
+	.o_spi_mosi(spi_mosi),
+	.i_spi_miso(spi_miso),
+	.o_spi_miso_data(spi_miso_data)
 );
 
-initial begin
-	clk = 0;
-	reset = 1;
-	datain = 0;
-end
-
-always #5 clk = ~clk;
+always #10 clk = ~clk;
 
 initial begin
-	#10 reset = 1'b0;
+	rst = 1;
+	clk = 1'b0;
+	spi_miso = 1'b0;
+	data = 16'd0;
+	repeat(10) @(posedge clk) rst = 1'b1;
+	repeat(10) @(posedge clk) rst = 1'b0;
+	repeat(10) @(posedge clk) rst = 1'b1;
 	
-	#10 	datain = 16'b1000_0000_1010_1010;
-	#1000 datain = 16'b1001_0011_1111_0000;
-	#1000 datain = 16'b1001_0011_0000_1111;
-	#1000 datain = 16'b1001_0011_1100_1100;
 	
-	#1000 datain = 16'b1001_0011_1011_0010;
-	#1000 datain = 16'b1001_0011_0000_0000;
+	// Test MOSI operation
+    @(posedge spi_cs_l) 
+        data = 16'b1011001110001111; // First bit is 1, MOSI operation
+    @(posedge spi_cs_l) 
+    begin
+        data = 16'b0000000011111111; //miso
+        spi_miso <= 1'b1;
+	end
+    // Test MISO operation
+    @(posedge spi_cs_l) begin
+        data = 16'b0111111111111111; // First bit is 0, MISO operation
+    	spi_miso <= 1'b0;    
+    end
+    //
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    ///
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    //
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b1;
+    @(posedge spi_clk) spi_miso <= 1'b0;
+    ///
+    @(posedge spi_clk) spi_miso <= 1'b0;
+	
+    #5000 $stop;
 end
-	
 endmodule
 
