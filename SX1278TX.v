@@ -1,3 +1,8 @@
+//for SX1278 LoRa module via SPI connection
+//EP2C5T144C8 FPGA as master/controller
+//SPI @8MHz (CPOL = 0, CPHA = 0)
+//clk = PIN_17
+
 module spi_tx(
 	//system
 	input clk,
@@ -15,7 +20,7 @@ module spi_tx(
 	input start,
 	output busy
 	
-	//debug
+	//debug/simulation
 	//output [7:0] o_counter,
 	//output [7:0] o_delay_counter
 );
@@ -36,7 +41,7 @@ assign mosi = r_mosi;
 assign miso_word = r_miso_word;
 assign busy = r_busy;
 
-//debug
+//debug/simulation
 //assign o_counter = counter;
 //assign o_delay_counter = delay_counter;
 
@@ -76,7 +81,6 @@ always @(negedge clk or negedge reset_n) begin
 			end
 			2: begin
 				r_mosi <= mosi_word[15];
-				
 				counter <= 3;
 			end
 			3: begin
@@ -299,18 +303,13 @@ module SX1278TX(
 	output mosi,
 	input miso,
 	
-	output busy,
-	input [7:0] btn
-	
-	//output [15:0] o_miso_word
-	
-	//debug
-	//output [7:0] o_state
+	input [7:0] btn //up, down, left right, red, blue, white, yellow
 );
 
 wire clk1MHz;
 reg start;
-reg [14:0] delay_counter;
+reg [23:0] delay_counter;
+wire busy;
 
 localparam 	r  = 1'b0,
 			w  = 1'b1,
@@ -336,9 +335,7 @@ reg [5:0] state;
 reg [15:0] mosi_word;
 wire [15:0] miso_word;
 
-//assign o_miso_word = miso_word;
 
-//assign o_state = state;
 clk_1MHz u1(
 	.i_clk(clk),
 	.i_reset_n(reset_n),
@@ -370,7 +367,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 		case (state)
 			0: begin
 				if (!busy) begin
-					mosi_word <= {r, RegVersion, 8'h00}; // {r/w, register, value}
+					mosi_word <= {r, RegVersion, 8'h00}; // @mosi {r/w, register, value}
 					start <= 1'b1;
 					state <= 1;
 				end
@@ -522,7 +519,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 				start <= 1'b0;
 				state <= 28;
 			end
-			28: begin //loop(?)
+			28: begin //-----------------------------------loop-----------------------------------
 				if (!busy) begin
 					mosi_word <= {r, RegOpMode, 8'h00};
 					start <= 1'b1;
@@ -681,14 +678,11 @@ always @(posedge clk1MHz or negedge reset_n) begin
 				state <= 56;
 			end
 			56: begin
-				if (delay_counter >= 15'd32_767) begin //210 ms
+				if (delay_counter >= 20'd399_999) begin //~50 ms
 					delay_counter <= 0;
-					state <= 0;
-					//delay_counter <= delay_counter + 1;
+					state <= 28;
 				end else begin
 					delay_counter <= delay_counter + 1;
-					//delay_counter <= 0;	
-					//state <= 0;
 				end
 			end
 		endcase
