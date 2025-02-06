@@ -1,8 +1,7 @@
 Interface SX1278 LoRa module with EP2C5T144C8N FPGA using SPI for long range RC car
 SPI @8MHz (CPOL = 0, CPHA = 0)
 
-SX1278: https:
-    semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE
+SX1278: https://semtech.my.salesforce.com/sfc/p/#E0000000JelG/a/2R0000001Rbr/6EfVZUorrpoKFfvaF_Fkpgp5kzjiNyiAbqcpqh9qSjE
   
 EP2C5T144C8N:
     https://land-boards.com/blwiki/index.php?title=Cyclone_II_EP2C5_Mini_Dev_Board#I.2FO_Pin_Mapping
