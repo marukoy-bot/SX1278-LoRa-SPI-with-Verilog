@@ -295,14 +295,18 @@ end
 endmodule
 
 module SX1278TX(
+	//system
 	input clk,
-	input reset_n,
-	
+	input reset_n, //input pullup, PIN_144
+
+	//SPI
 	output nss,
 	output sck,
 	output mosi,
 	input miso,
-	
+	output o_reset,
+
+	//i/o
 	input [7:0] btn //up, down, left right, red, blue, white, yellow
 );
 
@@ -310,6 +314,8 @@ wire clk1MHz;
 reg start;
 reg [23:0] delay_counter;
 wire busy;
+
+assign o_reset = reset_n;
 
 localparam 	r  = 1'b0,
 			w  = 1'b1,
@@ -444,7 +450,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			14: begin
 				if (!busy) begin
-					mosi_word <= {r, RegLna, 8'h00};
+					mosi_word <= {w, RegLna, 8'h23};
 					start <= 1'b1;
 					state <= 15;
 				end
@@ -455,7 +461,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			16: begin
 				if (!busy) begin
-					mosi_word <= {w, RegLna, 8'h23};
+					mosi_word <= {w, RegModemConfig3, 8'h04};
 					start <= 1'b1;
 					state <= 17;
 				end
@@ -466,8 +472,8 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			18: begin
 				if (!busy) begin
-					mosi_word <= {w, RegModemConfig3, 8'h04};
-					start <= 1'b1;
+					mosi_word <= {w, RegPaDac, 8'h84};
+					start  <= 1'b1;
 					state <= 19;
 				end
 			end
@@ -477,8 +483,8 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			20: begin
 				if (!busy) begin
-					mosi_word <= {w, RegPaDac, 8'h84};
-					start  <= 1'b1;
+					mosi_word <= {w, RegOcp, 8'h2b};
+					start <= 1'b1;
 					state <= 21;
 				end
 			end
@@ -488,7 +494,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			22: begin
 				if (!busy) begin
-					mosi_word <= {w, RegOcp, 8'h2b};
+					mosi_word <= {w, RegPaConfig, 8'h8f};
 					start <= 1'b1;
 					state <= 23;
 				end
@@ -499,7 +505,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			24: begin
 				if (!busy) begin
-					mosi_word <= {w, RegPaConfig, 8'h8f};
+					mosi_word <= {w, RegOpMode, 8'h81};
 					start <= 1'b1;
 					state <= 25;
 				end
@@ -509,7 +515,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 				state <= 26;
 			end
 			26: begin
-				if (!busy) begin
+				if (!busy) begin //-----------------------------------loop(TX)-----------------------------------
 					mosi_word <= {w, RegOpMode, 8'h81};
 					start <= 1'b1;
 					state <= 27;
@@ -519,9 +525,9 @@ always @(posedge clk1MHz or negedge reset_n) begin
 				start <= 1'b0;
 				state <= 28;
 			end
-			28: begin //-----------------------------------loop-----------------------------------
+			28: begin 
 				if (!busy) begin
-					mosi_word <= {r, RegOpMode, 8'h00};
+					mosi_word <= {r, RegIrqFlags, 8'h00};
 					start <= 1'b1;
 					state <= 29;
 				end
@@ -532,7 +538,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			30: begin
 				if (!busy) begin
-					mosi_word <= {r, RegIrqFlags, 8'h00};
+					mosi_word <= {w, RegModemConfig1, 8'h72};
 					start <= 1'b1;
 					state <= 31;
 				end
@@ -543,8 +549,8 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			32: begin
 				if (!busy) begin
-					mosi_word <= {w, RegOpMode, 8'h81};
-					start <= 1'b1;
+					mosi_word <= {w, RegFifoAddrPtr, 8'h00};
+					start  <= 1'b1;
 					state <= 33;
 				end
 			end
@@ -554,7 +560,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			34: begin
 				if (!busy) begin
-					mosi_word <= {r, RegModemConfig1, 8'h00};
+					mosi_word <= {w, RegFifo, btn};
 					start <= 1'b1;
 					state <= 35;
 				end
@@ -565,10 +571,10 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			36: begin
 				if (!busy) begin
-					mosi_word <= {w, RegModemConfig1, 8'h72};
+					mosi_word <= {w, RegPayloadLength, 8'h01};
 					start <= 1'b1;
 					state <= 37;
-				end
+				end	
 			end
 			37: begin
 				start <= 1'b0;
@@ -576,8 +582,8 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			38: begin
 				if (!busy) begin
-					mosi_word <= {w, RegFifoAddrPtr, 8'h00};
-					start  <= 1'b1;
+					mosi_word <= {w, RegOpMode, 8'h83};
+					start <= 1'b1;
 					state <= 39;
 				end
 			end
@@ -587,7 +593,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			40: begin
 				if (!busy) begin
-					mosi_word <= {w, RegPayloadLength, 8'h00};
+					mosi_word <= {r, RegIrqFlags, 8'h00};
 					start <= 1'b1;
 					state <= 41;
 				end
@@ -598,9 +604,13 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			42: begin
 				if (!busy) begin
-					mosi_word <= {r, RegPayloadLength, 8'h00};
+					//if MISO reads 16'hxx08, proceeds to state 43, else it goes back to state 40
 					start <= 1'b1;
-					state <= 43;
+					if (miso_word[7:0] == 8'h08) begin
+						state <= 43;
+					end else begin
+						state <= 40;
+					end
 				end
 			end
 			43: begin
@@ -609,7 +619,7 @@ always @(posedge clk1MHz or negedge reset_n) begin
 			end
 			44: begin
 				if (!busy) begin
-					mosi_word <= {w, RegFifo, btn};
+					mosi_word <= {w, RegIrqFlags, 8'h08};
 					start <= 1'b1;
 					state <= 45;
 				end
@@ -619,68 +629,9 @@ always @(posedge clk1MHz or negedge reset_n) begin
 				state <= 46;
 			end
 			46: begin
-				if (!busy) begin
-					mosi_word <= {w, RegPayloadLength, 8'h01};
-					start <= 1'b1;
-					state <= 47;
-				end	
-			end
-			47: begin
-				start <= 1'b0;
-				state <= 48;
-			end
-			48: begin
-				if (!busy) begin
-					mosi_word <= {w, RegOpMode, 8'h83};
-					start <= 1'b1;
-					state <= 49;
-				end
-			end
-			49: begin
-				start <= 1'b0;
-				state <= 50;
-			end
-			50: begin
-				if (!busy) begin
-					mosi_word <= {r, RegIrqFlags, 8'h00};
-					start <= 1'b1;
-					state <= 51;
-				end
-			end
-			51: begin
-				start <= 1'b0;
-				state <= 52;
-			end
-			52: begin
-				if (!busy) begin
-					//if MISO reads 16'h9c08, proceeds to state 53, else it goes back to state 50
-					start <= 1'b1;
-					if (miso_word[7:0] == 8'h08) begin
-						state <= 53;
-					end else begin
-						state <= 50;
-					end
-				end
-			end
-			53: begin
-				start <= 1'b0;
-				state <= 54;	
-			end
-			54: begin
-				if (!busy) begin
-					mosi_word <= {w, RegIrqFlags, 8'h08};
-					start <= 1'b1;
-					state <= 55;
-				end
-			end
-			55: begin
-				start <= 1'b0;
-				state <= 56;
-			end
-			56: begin
 				if (delay_counter >= 20'd399_999) begin //~50 ms
 					delay_counter <= 0;
-					state <= 28;
+					state <= 26; //26 if TX only, no callbacks
 				end else begin
 					delay_counter <= delay_counter + 1;
 				end
