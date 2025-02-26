@@ -271,7 +271,7 @@ always @(negedge clk or negedge reset_n) begin
 end	
 endmodule
 
-module clk_1MHz(
+module clk_8MHz(
 	input i_clk,
 	input i_reset_n,
 	output reg o_clk
@@ -309,7 +309,7 @@ module SX1278TX(
 	input [7:0] btn //up, down, left right, red, blue, white, yellow
 );
 
-wire clk1MHz;
+wire clk8MHz;
 reg start;
 reg [23:0] delay_counter;
 wire busy;
@@ -339,14 +339,14 @@ reg [15:0] mosi_word;
 wire [15:0] miso_word;
 
 
-clk_1MHz u1(
+clk_8MHz u1(
 	.i_clk(clk),
 	.i_reset_n(reset_n),
-	.o_clk(clk1MHz)
+	.o_clk(clk8MHz)
 );
 
 spi_tx u2(
-	.clk(clk1MHz),
+	.clk(clk8MHz),
 	.reset_n(reset_n),
 	
 	.nss(nss),
@@ -360,7 +360,7 @@ spi_tx u2(
 	.busy(busy)
 );
 
-always @(posedge clk1MHz or negedge reset_n) begin
+	always @(posedge clk8MHz or negedge reset_n) begin
 	if (!reset_n) begin
 		start <= 1'b0;
 		state <= 0;
